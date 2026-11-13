@@ -1,0 +1,28 @@
+# Build outputs
+build/
+out/
+bin/
+*.vst3
+*.lv2
+*.clap
+*.dll
+*.lib
+*.exp
+*.pdb
+*.obj
+
+# IDE/local
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust build output
+target/
+
+# Build logs
+*.log

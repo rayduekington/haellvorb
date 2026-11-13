@@ -1,0 +1,14 @@
+[package]
+name = "wilvorb-plugin"
+version.workspace = true
+edition.workspace = true
+description = "Wilvorb reverb VST3/CLAP plugin with random Wilhelm scream triggers"
+
+[dependencies]
+wilvorb-dsp = { path = "../wilvorb-dsp" }
+nice-plug = { git = "https://github.com/AlexCharlton/nice-plug", branch = "main", features = ["unsafe_flush_denormals"] }
+nice-plug-egui = { git = "https://github.com/AlexCharlton/nice-plug", branch = "main", default-features = false, features = ["wgpu"] }
+egui = "0.34"
+
+[lib]
+crate-type = ["cdylib", "lib"]

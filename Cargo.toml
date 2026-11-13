@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = [
+    "wilvorb-dsp",
+    "wilvorb-plugin",
+]
+exclude = [
+    "target",
+    "nice-plug",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+lto = true
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+
+[patch."https://github.com/AlexCharlton/nice-plug"]
+nice-plug = { path = "nice-plug/crates/nice-plug" }
+nice-plug-egui = { path = "nice-plug/crates/nice-plug-egui" }
+
+[profile.dev.package.wilvorb-dsp]
+opt-level = 3
