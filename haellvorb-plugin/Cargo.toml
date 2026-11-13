@@ -9,6 +9,7 @@ haellvorb-dsp = { path = "../haellvorb-dsp" }
 nice-plug = { git = "https://github.com/AlexCharlton/nice-plug", branch = "main", features = ["unsafe_flush_denormals"] }
 nice-plug-egui = { git = "https://github.com/AlexCharlton/nice-plug", branch = "main", default-features = false, features = ["wgpu"] }
 egui = "0.34"
+image = { version = "0.25", default-features = false, features = ["webp"] }
 
 [lib]
 crate-type = ["cdylib", "lib"]
