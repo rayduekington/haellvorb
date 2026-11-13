@@ -1,0 +1,9 @@
+[package]
+name = "haellvorb-dsp"
+version.workspace = true
+edition.workspace = true
+description = "Haellvorb DSP core: algorithmic reverb with random Wilhelm scream triggers"
+
+[dependencies]
+hound = "3.5"
+lewton = "0.10"

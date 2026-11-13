@@ -1,13 +1,13 @@
-//! Wilvorb GUI (egui).
+//! Haellvorb GUI (egui).
 
 use std::sync::Arc;
 
 use nice_plug_egui::{create_egui_editor, resizable_window::ResizableWindow, widgets, EguiState};
 
-use crate::{WilvorbParams, DEFAULT_GUI_SIZE};
+use crate::{HaellvorbParams, DEFAULT_GUI_SIZE};
 
 pub fn create(
-    params: Arc<WilvorbParams>,
+    params: Arc<HaellvorbParams>,
     editor_state: Arc<EguiState>,
 ) -> Option<Box<dyn nice_plug::prelude::Editor>> {
     create_egui_editor(
@@ -16,7 +16,7 @@ pub fn create(
         Default::default(),
         |_egui_ctx, _queue, _state| {},
         move |ui, setter, _queue, _state| {
-            ResizableWindow::new("wilvorb-main")
+            ResizableWindow::new("haellvorb-main")
                 .min_size(egui::vec2(DEFAULT_GUI_SIZE.0 as f32, DEFAULT_GUI_SIZE.1 as f32))
                 .show(ui, editor_state.as_ref(), |ui| {
                     egui::CentralPanel::default().show_inside(ui, |ui| {

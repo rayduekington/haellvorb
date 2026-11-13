@@ -1,4 +1,4 @@
-//! Wilvorb DSP core.
+//! Haellvorb DSP core.
 //!
 //! Signal chain: input -> algorithmic reverb -> Wilhelm scream injection -> output.
 

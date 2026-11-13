@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "wilvorb-dsp",
-    "wilvorb-plugin",
+    "haellvorb-dsp",
+    "haellvorb-plugin",
 ]
 exclude = [
     "target",
@@ -24,5 +24,5 @@ opt-level = 1
 nice-plug = { path = "nice-plug/crates/nice-plug" }
 nice-plug-egui = { path = "nice-plug/crates/nice-plug-egui" }
 
-[profile.dev.package.wilvorb-dsp]
+[profile.dev.package.haellvorb-dsp]
 opt-level = 3

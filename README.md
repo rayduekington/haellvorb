@@ -1,4 +1,4 @@
-# Wilvorb
+# Haellvorb
 
 Reverb (VST3/CLAP) plugin that injects Wilhelm screams at random, changing level thresholds. Scream playback rate is pitch-fitted to detected input pitch.
 
@@ -19,12 +19,12 @@ Reverb (VST3/CLAP) plugin that injects Wilhelm screams at random, changing level
 Requires Rust toolchain and `cargo-nice-plug` (nice-plug bundler).
 
 ```powershell
-cargo nice-plug bundle wilvorb-plugin --release
+cargo nice-plug bundle haellvorb-plugin --release
 ```
 
 Outputs:
-- `target/bundled/wilvorb-plugin.vst3`
-- `target/bundled/wilvorb-plugin.clap`
+- `target/bundled/haellvorb-plugin.vst3`
+- `target/bundled/haellvorb-plugin.clap`
 
 ## Repo
-- Gitea: https://gitea.herzog-lokal.de/slopfactory/wilvorb
+- Gitea: https://gitea.herzog-lokal.de/slopfactory/haellvorb

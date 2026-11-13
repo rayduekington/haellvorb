@@ -1,11 +1,11 @@
-//! Wilvorb: reverb plugin with random Wilhelm scream triggers.
+//! Haellvorb: reverb plugin with random Wilhelm scream triggers.
 
 use nice_plug::prelude::*;
 use nice_plug_egui::EguiState;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-use wilvorb_dsp::chain::Chain;
+use haellvorb_dsp::chain::Chain;
 
 mod gui;
 
@@ -18,7 +18,7 @@ const SCREAM_WAV_M: &[u8] = include_bytes!("../assets/screams/wilhelm_male.wav")
 const SCREAM_WAV_W: &[u8] = include_bytes!("../assets/screams/wilhelm_woman.wav");
 
 #[derive(Params)]
-struct WilvorbParams {
+struct HaellvorbParams {
     #[persist = "editor-state"]
     pub editor_state: Arc<EguiState>,
 
@@ -50,7 +50,7 @@ struct WilvorbParams {
     pub scream_gain: FloatParam,
 }
 
-impl Default for WilvorbParams {
+impl Default for HaellvorbParams {
     fn default() -> Self {
         Self {
             editor_state: EguiState::from_size(DEFAULT_GUI_SIZE.0, DEFAULT_GUI_SIZE.1),
@@ -71,17 +71,17 @@ impl Default for WilvorbParams {
     }
 }
 
-struct Wilvorb {
-    params: Arc<WilvorbParams>,
+struct Haellvorb {
+    params: Arc<HaellvorbParams>,
     chain: Chain,
     sample_rate: f64,
     samples_loaded: bool,
 }
 
-impl Default for Wilvorb {
+impl Default for Haellvorb {
     fn default() -> Self {
         Self {
-            params: Arc::new(WilvorbParams::default()),
+            params: Arc::new(HaellvorbParams::default()),
             chain: Chain::new(44100.0),
             sample_rate: 44100.0,
             samples_loaded: false,
@@ -89,21 +89,21 @@ impl Default for Wilvorb {
     }
 }
 
-impl Wilvorb {
+impl Haellvorb {
     fn ensure_samples(&mut self) {
         if self.samples_loaded { return; }
         let mut bank: Vec<(Vec<f32>, f32)> = Vec::new();
 
         // OGG samples
-        if let Some((pcm, base_hz, src_sr)) = wilvorb_dsp::scream::decode_ogg_mono(SCREAM_OGG_1) {
-            let pcm = wilvorb_dsp::scream::resample_linear(&pcm, src_sr as f64, self.sample_rate);
+        if let Some((pcm, base_hz, src_sr)) = haellvorb_dsp::scream::decode_ogg_mono(SCREAM_OGG_1) {
+            let pcm = haellvorb_dsp::scream::resample_linear(&pcm, src_sr as f64, self.sample_rate);
             let pitch = if src_sr as f64 > 0.0 { base_hz * (self.sample_rate as f32 / src_sr as f32) } else { base_hz };
             bank.push((pcm, pitch));
         }
         // WAV samples
         for bytes in [SCREAM_WAV_4, SCREAM_WAV_M, SCREAM_WAV_W] {
-            if let Some((pcm, base_hz, src_sr)) = wilvorb_dsp::scream::decode_wav_mono(bytes) {
-                let pcm = wilvorb_dsp::scream::resample_linear(&pcm, src_sr as f64, self.sample_rate);
+            if let Some((pcm, base_hz, src_sr)) = haellvorb_dsp::scream::decode_wav_mono(bytes) {
+                let pcm = haellvorb_dsp::scream::resample_linear(&pcm, src_sr as f64, self.sample_rate);
                 let pitch = if src_sr as f64 > 0.0 { base_hz * (self.sample_rate as f32 / src_sr as f32) } else { base_hz };
                 bank.push((pcm, pitch));
             }
@@ -116,10 +116,10 @@ impl Wilvorb {
     }
 }
 
-impl Plugin for Wilvorb {
-    const NAME: &'static str = "Wilvorb";
+impl Plugin for Haellvorb {
+    const NAME: &'static str = "Haellvorb";
     const VENDOR: &'static str = "slopfactory";
-    const URL: &'static str = "https://gitea.herzog-lokal.de/slopfactory/wilvorb";
+    const URL: &'static str = "https://gitea.herzog-lokal.de/slopfactory/haellvorb";
     const EMAIL: &'static str = "";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -182,18 +182,18 @@ impl Plugin for Wilvorb {
     }
 }
 
-impl ClapPlugin for Wilvorb {
-    const CLAP_ID: &'static str = "com.slopfactory.wilvorb";
+impl ClapPlugin for Haellvorb {
+    const CLAP_ID: &'static str = "com.slopfactory.haellvorb";
     const CLAP_DESCRIPTION: Option<&'static str> = Some("Reverb with random Wilhelm scream triggers");
     const CLAP_MANUAL_URL: Option<&'static str> = None;
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::AudioEffect, ClapFeature::Stereo, ClapFeature::Reverb];
 }
 
-impl Vst3Plugin for Wilvorb {
-    const VST3_CLASS_ID: [u8; 16] = *b"WilvorbScreamRev";
+impl Vst3Plugin for Haellvorb {
+    const VST3_CLASS_ID: [u8; 16] = *b"HaellvorbScrmRev";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Fx, Vst3SubCategory::Reverb];
 }
 
-nice_plug::nice_export_clap!(Wilvorb);
-nice_plug::nice_export_vst3!(Wilvorb);
+nice_plug::nice_export_clap!(Haellvorb);
+nice_plug::nice_export_vst3!(Haellvorb);
