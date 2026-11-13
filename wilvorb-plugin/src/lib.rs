@@ -175,7 +175,7 @@ impl Plugin for Wilvorb {
         cp.scream_change = p.scream_change.value();
         cp.scream_gain = p.scream_gain.value();
 
-        let mut channel_slices = buffer.as_slice();
+        let channel_slices = buffer.as_slice();
         let mut refs: Vec<&mut [f32]> = channel_slices.iter_mut().map(|c| &mut c[..]).collect();
         self.chain.process(&mut refs);
         ProcessStatus::Normal
