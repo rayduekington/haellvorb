@@ -4,12 +4,13 @@ use nice_plug::prelude::*;
 use nice_plug_egui::EguiState;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use haellvorb_dsp::chain::Chain;
 
 mod gui;
 
-const DEFAULT_GUI_SIZE: (u32, u32) = (640, 360);
+const DEFAULT_GUI_SIZE: (u32, u32) = (480, 520);
 
 // Embedded CC0 scream samples (OGG/Vorbis and WAV).
 const SCREAM_OGG_1: &[u8] = include_bytes!("../assets/screams/wilhelm1.ogg");
@@ -50,23 +51,48 @@ struct HaellvorbParams {
     pub scream_gain: FloatParam,
 }
 
+fn rand_norm_10_50(seed: &mut u32) -> f32 {
+    // LCG -> 0..1
+    *seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+    let r = (*seed as f32 / u32::MAX as f32).clamp(0.0, 1.0);
+    0.1 + r * 0.4
+}
+
+fn lerp(min: f32, max: f32, t: f32) -> f32 { min + (max - min) * t }
+
 impl Default for HaellvorbParams {
     fn default() -> Self {
+        let mut seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u32)
+            .unwrap_or(0xA53C9E21);
+        if seed == 0 { seed = 0xA53C9E21; }
+
+        // "Randomize all other faders between 10% and 50% by default" (normalized).
+        let in_gain = lerp(-24.0, 24.0, rand_norm_10_50(&mut seed));
+        let out_gain = lerp(-24.0, 24.0, rand_norm_10_50(&mut seed));
+        let rev_mix = rand_norm_10_50(&mut seed);
+        let rev_predelay = lerp(0.0, 250.0, rand_norm_10_50(&mut seed));
+        let rev_damp = rand_norm_10_50(&mut seed);
+        let scream_sens = rand_norm_10_50(&mut seed);
+        let scream_change = rand_norm_10_50(&mut seed);
+        let scream_gain = lerp(0.0, 2.0, rand_norm_10_50(&mut seed));
+
         Self {
             editor_state: EguiState::from_size(DEFAULT_GUI_SIZE.0, DEFAULT_GUI_SIZE.1),
-            in_gain: FloatParam::new("Input Gain", 0.0, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
-            out_gain: FloatParam::new("Output Gain", 0.0, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
+            in_gain: FloatParam::new("Input Gain", in_gain, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
+            out_gain: FloatParam::new("Output Gain", out_gain, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
 
             rev_on: BoolParam::new("Reverb", true),
-            rev_mix: FloatParam::new("Mix", 0.35, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            rev_mix: FloatParam::new("Mix", rev_mix, FloatRange::Linear { min: 0.0, max: 1.0 }),
             rev_decay: FloatParam::new("Decay", 2.5, FloatRange::Linear { min: 0.1, max: 10.0 }).with_unit(" s"),
-            rev_predelay: FloatParam::new("Pre-delay", 30.0, FloatRange::Linear { min: 0.0, max: 250.0 }).with_unit(" ms"),
-            rev_damp: FloatParam::new("Damping", 0.35, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            rev_predelay: FloatParam::new("Pre-delay", rev_predelay, FloatRange::Linear { min: 0.0, max: 250.0 }).with_unit(" ms"),
+            rev_damp: FloatParam::new("Damping", rev_damp, FloatRange::Linear { min: 0.0, max: 1.0 }),
 
             scream_on: BoolParam::new("Wilhelm", true),
-            scream_sens: FloatParam::new("Sensitivity", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
-            scream_change: FloatParam::new("Chaos", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
-            scream_gain: FloatParam::new("Scream Level", 0.7, FloatRange::Linear { min: 0.0, max: 2.0 }),
+            scream_sens: FloatParam::new("Sensitivity", scream_sens, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            scream_change: FloatParam::new("Chaos", scream_change, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            scream_gain: FloatParam::new("Scream Level", scream_gain, FloatRange::Linear { min: 0.0, max: 2.0 }),
         }
     }
 }
