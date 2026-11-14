@@ -2,7 +2,7 @@
 
 Haellvorb is a dark, reverb-first **VST3/CLAP** audio plugin for Linux with an ominous algorithmic space, input-reactive particles, and optional Wilhelm scream injections.
 
-![Haellvorb UI](docs/screenshot.webp)
+![Haellvorb UI](docs/screenshot.png)
 
 ## Features
 - **Algorithmic reverb:** comb/allpass tank with calibrated decay (RT60-based feedback), pre-delay, damping, and dry/wet mix.
