@@ -10,7 +10,7 @@ use haellvorb_dsp::chain::Chain;
 
 mod gui;
 
-const DEFAULT_GUI_SIZE: (u32, u32) = (480, 520);
+const DEFAULT_GUI_SIZE: (u32, u32) = (480, 500);
 
 // Embedded CC0 scream samples (OGG/Vorbis and WAV).
 const SCREAM_OGG_1: &[u8] = include_bytes!("../assets/screams/wilhelm1.ogg");
@@ -83,10 +83,10 @@ impl Default for HaellvorbParams {
             rev_predelay: FloatParam::new("Pre-delay", rev_predelay, FloatRange::Linear { min: 0.0, max: 250.0 }).with_unit(" ms"),
             rev_damp: FloatParam::new("Damping", rev_damp, FloatRange::Linear { min: 0.0, max: 1.0 }),
 
-            scream_on: BoolParam::new("Wilhelm", false),
+            scream_on: BoolParam::new("Wilhelm", true),
             scream_sens: FloatParam::new("Sensitivity", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
             scream_change: FloatParam::new("Chaos", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
-            scream_gain: FloatParam::new("Scream Level", 10f32.powf(-6.0 / 20.0), FloatRange::Linear { min: 0.0, max: 2.0 }),
+            scream_gain: FloatParam::new("Scream", 1.0, FloatRange::Linear { min: 0.0, max: 4.0 }),
         }
     }
 }

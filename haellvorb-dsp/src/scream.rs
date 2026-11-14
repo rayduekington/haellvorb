@@ -79,6 +79,9 @@ pub struct ScreamEngine {
     detected_hz: f32,
     pitch_update: usize,
 
+    // Gate screams to actual input activity
+    input_hold: usize,
+
     rng: Rng,
 }
 
@@ -99,7 +102,7 @@ impl ScreamEngine {
             hold_samples: (sample_rate * 0.4) as usize,
             hold_counter: 0,
             enabled: true,
-            scream_gain: 10f32.powf(-6.0 / 20.0),
+            scream_gain: 1.0,
             sensitivity: 0.5,
             change_rate: 0.5,
             change_counter: 0,
@@ -108,6 +111,7 @@ impl ScreamEngine {
             pitch_filled: false,
             detected_hz: 0.0,
             pitch_update: 0,
+            input_hold: 0,
             rng: Rng::new(0xC0FFEE),
         };
         e.update_coeffs();
@@ -129,12 +133,12 @@ impl ScreamEngine {
         self.env_release = (-1.0 / (0.200 * self.sample_rate as f32)).exp();
     }
 
-    pub fn set_params(&mut self, enabled: bool, sensitivity: f32, change_rate: f32, _gain: f32) {
+    pub fn set_params(&mut self, enabled: bool, sensitivity: f32, change_rate: f32, gain: f32) {
         self.enabled = enabled;
         self.sensitivity = sensitivity.clamp(0.0, 1.0);
         self.change_rate = change_rate.clamp(0.0, 1.0);
-        // Keep screams in the background at ~ -6 dB relative to the main signal.
-        self.scream_gain = 10f32.powf(-6.0 / 20.0);
+        // Adjustable scream amount/level.
+        self.scream_gain = gain.clamp(0.0, 4.0);
         // sensitivity maps threshold range: high sensitivity -> lower thresholds (trigger easier)
         self.threshold_min_db = -48.0 + (1.0 - self.sensitivity) * 12.0;
         self.threshold_max_db = -24.0 + (1.0 - self.sensitivity) * 18.0;
@@ -160,6 +164,7 @@ impl ScreamEngine {
         self.detected_hz = 0.0;
         self.pitch_update = 0;
         self.change_counter = 0;
+        self.input_hold = 0;
     }
 
     fn randomize_threshold(&mut self) {
@@ -235,11 +240,30 @@ impl ScreamEngine {
         self.randomize_threshold();
     }
 
-    /// Process in-place stereo buffers and mix in screams. `input_level_source` is pre-reverb dry mix proxy.
-    pub fn process(&mut self, buffers: &mut [&mut [f32]]) {
+    /// Process in-place stereo buffers and mix in screams.
+    /// `input_present` gates triggering/output so screams only occur when actual input is present.
+    pub fn process(&mut self, buffers: &mut [&mut [f32]], input_present: bool) {
         if buffers.is_empty() { return; }
         let n = buffers[0].len();
         let stereo = buffers.len() > 1;
+
+        // Track input activity with hold so screams stop shortly after input goes silent.
+        if input_present {
+            self.input_hold = (self.sample_rate as usize / 2).max(1); // ~0.5s hold
+        } else if self.input_hold > 0 {
+            // decrease once per block for efficiency
+            self.input_hold = self.input_hold.saturating_sub(n);
+        }
+        let allow_screams = input_present || self.input_hold > 0;
+
+        if !allow_screams {
+            // No recent input: stop active screams and skip processing/mixing.
+            for v in &mut self.voices { v.active = false; }
+            self.env *= 0.9;
+            self.armed = true;
+            self.hold_counter = 0;
+            return;
+        }
 
         for i in 0..n {
             let l = buffers[0][i];
@@ -278,7 +302,7 @@ impl ScreamEngine {
             if self.hold_counter > 0 { self.hold_counter -= 1; }
 
             if self.enabled {
-                if self.armed && env_db >= self.threshold_db && self.hold_counter == 0 {
+                if self.armed && env_db >= self.threshold_db && self.hold_counter == 0 && input_present {
                     self.trigger();
                     self.armed = false;
                     self.hold_counter = self.hold_samples;

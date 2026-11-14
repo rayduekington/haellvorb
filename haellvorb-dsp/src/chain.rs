@@ -90,11 +90,27 @@ impl Chain {
             for s in buf.iter_mut() { *s *= in_lin; }
         }
 
+        // Detect input presence before reverb so screams only trigger on actual input.
+        let mut input_present = false;
+        let n = buffers[0].len();
+        let stereo = buffers.len() > 1;
+        for i in 0..n {
+            let l = buffers[0][i];
+            let r = if stereo { buffers[1][i] } else { l };
+            let mono = 0.5 * (l + r);
+            if mono.abs() > 1e-4 {
+                input_present = true;
+                break;
+            }
+        }
+
         // Reverb (main effect), controlled by mix knob.
         self.reverb.set_params(p.reverb_on, p.reverb_mix, p.reverb_decay, p.reverb_predelay, p.reverb_damping);
         self.reverb.process(buffers);
 
-        // Scream intentionally ignored for now.
+        // Wilhelm screams (random threshold trigger + pitch-fit)
+        self.scream.set_params(p.scream_on, p.scream_sensitivity, p.scream_change, p.scream_gain);
+        self.scream.process(buffers, input_present);
 
         // Output gain
         for buf in buffers.iter_mut() {
