@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "haellvorb-dsp"
-version = "0.1.0"
+version = "0.1.10"
 dependencies = [
  "hound",
  "lewton",
@@ -856,7 +856,7 @@ dependencies = [
 
 [[package]]
 name = "haellvorb-plugin"
-version = "0.1.0"
+version = "0.1.10"
 dependencies = [
  "egui",
  "haellvorb-dsp",

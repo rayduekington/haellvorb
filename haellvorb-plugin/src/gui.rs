@@ -1,4 +1,5 @@
-//! Haellvorb GUI (egui) — dark, ominous, single huge decay knob.
+//! Haellvorb GUI (egui) — dark, ominous reverb controls.
+//! Big knob: reverb time (decay). Smaller knobs: other dials, same style.
 
 use std::sync::Arc;
 
@@ -28,56 +29,67 @@ fn get_background(ctx: &egui::Context) -> Option<egui::TextureHandle> {
     ctx.data(|d| d.get_temp::<Option<egui::TextureHandle>>(egui::Id::new("haellvorb-bg")).flatten())
 }
 
-fn set_normalized<P: nice_plug::prelude::Param>(param: &P, setter: &ParamSetter, norm: f32) {
+fn set_normalized<P: Param>(param: &P, setter: &ParamSetter, norm: f32) {
     let value = param.preview_plain(norm.clamp(0.0, 1.0));
     setter.begin_set_parameter(param);
     setter.set_parameter(param, value);
     setter.end_set_parameter(param);
 }
 
-/// Huge, detailed rotary knob for reverb time (decay), filling most of the window.
-fn huge_decay_knob(ui: &mut egui::Ui, params: &HaellvorbParams, setter: &ParamSetter) {
-    let norm = params.rev_decay.modulated_normalized_value();
-    let secs = params.rev_decay.value();
-    let label = if secs < 1.0 {
-        format!("{} MS", (secs * 1000.0).round() as i32)
-    } else {
-        format!("{} S", secs.round() as i32)
-    };
+struct KnobStyle {
+    radius: f32,
+    value_font: f32,
+    title_font: f32,
+    end_font: f32,
+    readout_gap: f32,
+}
 
-    let avail = ui.available_size();
-    let w = avail.x.clamp(260.0, 520.0);
-    let h = avail.y.clamp(340.0, 900.0);
-    let (rect, response) = ui.allocate_exact_size(egui::vec2(w, h), egui::Sense::click_and_drag());
+fn draw_knob<P, F>(
+    ui: &mut egui::Ui,
+    param: &P,
+    setter: &ParamSetter,
+    title: &str,
+    left_end: &str,
+    right_end: &str,
+    format_value: F,
+    size: egui::Vec2,
+    style: KnobStyle,
+) where
+    P: Param<Plain = f32>,
+    F: Fn(f32) -> String,
+{
+    let norm = param.modulated_normalized_value();
+    let plain = param.modulated_plain_value();
+    let label = format_value(plain);
+
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click_and_drag());
 
     if response.drag_started() || response.clicked() {
-        setter.begin_set_parameter(&params.rev_decay);
+        setter.begin_set_parameter(param);
     }
 
-    // Vertical drag to change value (up = more decay), robust for large knob.
     let mut new_norm = norm;
     if response.dragged() {
         let delta = response.drag_delta().y;
         if delta.abs() > 0.0 {
             new_norm = (norm - delta * 0.004).clamp(0.0, 1.0);
-            set_normalized(&params.rev_decay, setter, new_norm);
+            set_normalized(param, setter, new_norm);
         }
     } else if response.clicked() {
         if let Some(pos) = response.interact_pointer_pos() {
-            // Click above/below center nudges toward that direction
             let center_y = rect.center().y;
             let target = if pos.y < center_y { norm + 0.05 } else { norm - 0.05 };
             new_norm = target.clamp(0.0, 1.0);
-            set_normalized(&params.rev_decay, setter, new_norm);
+            set_normalized(param, setter, new_norm);
         }
     }
     let scroll = ui.input(|i| i.smooth_scroll_delta.y);
     if response.hovered() && scroll.abs() > 0.0 {
         new_norm = (new_norm + scroll.signum() * 0.02).clamp(0.0, 1.0);
-        set_normalized(&params.rev_decay, setter, new_norm);
+        set_normalized(param, setter, new_norm);
     }
     if response.drag_stopped() || response.clicked() {
-        setter.end_set_parameter(&params.rev_decay);
+        setter.end_set_parameter(param);
     }
 
     let active_norm = if response.dragged() || (response.clicked() && (new_norm - norm).abs() > f32::EPSILON) {
@@ -87,78 +99,55 @@ fn huge_decay_knob(ui: &mut egui::Ui, params: &HaellvorbParams, setter: &ParamSe
     };
 
     let p = ui.painter_at(rect);
-    let panel = egui::Color32::from_rgba_unmultiplied(10, 11, 14, 170);
-    let stroke_col = egui::Color32::from_rgba_unmultiplied(50, 40, 40, 180);
     let accent = egui::Color32::from_rgb(160, 34, 28);
     let accent_glow = egui::Color32::from_rgb(90, 18, 16);
     let text_dim = egui::Color32::from_rgb(170, 160, 155);
     let text_mid = egui::Color32::from_rgb(190, 182, 176);
     let text_hot = egui::Color32::from_rgb(235, 226, 218);
 
-    let inner = rect.shrink(12.0);
-    p.rect_filled(inner, 10.0, panel);
-    p.rect_stroke(inner, 10.0, egui::Stroke::new(1.0, stroke_col), egui::StrokeKind::Inside);
-
-    // Typography (top)
-    p.text(
-        egui::pos2(inner.center().x, inner.top() + 28.0),
-        egui::Align2::CENTER_CENTER,
-        "HAELLVÖRB",
-        egui::FontId::proportional(16.0),
-        text_dim,
-    );
-
-    // Knob geometry
-    let knob_center = egui::pos2(inner.center().x, inner.top() + inner.height() * 0.46);
-    let max_r_by_w = inner.width() * 0.38;
-    let max_r_by_h = (inner.bottom() - 110.0 - inner.top()).max(80.0) * 0.42;
-    let radius = max_r_by_w.min(max_r_by_h).clamp(90.0, 170.0);
+    let knob_center = egui::pos2(rect.center().x, rect.top() + rect.height() * 0.42);
+    let radius = style.radius;
 
     let start_angle = 150.0_f32.to_radians();
     let end_angle = 390.0_f32.to_radians();
     let sweep = end_angle - start_angle;
 
-    // Outer bezel / shadow
-    p.circle_filled(knob_center + egui::vec2(0.0, 6.0), radius + 18.0, egui::Color32::from_rgb(4, 4, 5));
-    p.circle_filled(knob_center, radius + 16.0, egui::Color32::from_rgb(18, 19, 22));
-    p.circle_stroke(knob_center, radius + 16.0, egui::Stroke::new(2.0, egui::Color32::from_rgb(45, 40, 40)));
+    // Bezel / shadow
+    p.circle_filled(knob_center + egui::vec2(0.0, 4.0), radius + 12.0, egui::Color32::from_rgb(4, 4, 5));
+    p.circle_filled(knob_center, radius + 10.0, egui::Color32::from_rgb(18, 19, 22));
+    p.circle_stroke(
+        knob_center,
+        radius + 10.0,
+        egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(45, 40, 40)),
+    );
 
-    // Tick marks
-    let ticks = 41;
+    // Ticks
+    let ticks = 31;
     for i in 0..ticks {
         let t = i as f32 / (ticks - 1) as f32;
         let a = start_angle + sweep * t;
         let (s, c) = a.sin_cos();
         let dir = egui::vec2(c, s);
         let major = i % 5 == 0;
-        let r0 = if major { radius + 2.0 } else { radius + 6.0 };
-        let r1 = radius + 13.0;
-        let col = if t <= active_norm { accent } else if major { egui::Color32::from_rgb(70, 64, 64) } else { egui::Color32::from_rgb(40, 38, 38) };
-        let wdt = if major { 2.0 } else { 1.0 };
-        p.line_segment(
-            [knob_center + dir * r0, knob_center + dir * r1],
-            egui::Stroke::new(wdt, col),
-        );
+        let r0 = if major { radius + 1.0 } else { radius + 4.0 };
+        let r1 = radius + 8.0;
+        let col = if t <= active_norm {
+            accent
+        } else if major {
+            egui::Color32::from_rgb(70, 64, 64)
+        } else {
+            egui::Color32::from_rgb(40, 38, 38)
+        };
+        let wdt = if major { 1.5_f32 } else { 1.0_f32 };
+        p.line_segment([knob_center + dir * r0, knob_center + dir * r1], egui::Stroke::new(wdt, col));
     }
 
     // Value arc
-    let arc_r = radius + 9.0;
-    let steps = 80;
+    let arc_r = radius + 5.0;
+    let steps = 60;
     let active_steps = ((active_norm * steps as f32).round() as i32).clamp(0, steps);
     if active_steps > 0 {
         let mut pts: Vec<egui::Pos2> = Vec::with_capacity(active_steps as usize + 1);
-        for i in 0..=active_steps {
-            let t = i as f32 / steps as f32;
-            let a = start_angle + sweep * t * active_norm.max(0.0001) / active_norm.max(0.0001);
-            let a = start_angle + sweep * (i as f32 / steps as f32);
-            // clamp to active_norm
-            let tt = (i as f32 / steps as f32).min(active_norm);
-            let aa = start_angle + sweep * tt;
-            let (s, c) = aa.sin_cos();
-            pts.push(knob_center + egui::vec2(c, s) * arc_r);
-        }
-        // rebuild cleanly
-        pts.clear();
         for i in 0..=active_steps {
             let tt = (i as f32 / steps as f32).min(active_norm);
             let aa = start_angle + sweep * tt;
@@ -166,81 +155,136 @@ fn huge_decay_knob(ui: &mut egui::Ui, params: &HaellvorbParams, setter: &ParamSe
             pts.push(knob_center + egui::vec2(c, s) * arc_r);
         }
         if pts.len() >= 2 {
-            p.add(egui::Shape::line(pts, egui::Stroke::new(3.0, accent)));
+            p.add(egui::Shape::line(pts, egui::Stroke::new(2.5_f32, accent)));
         }
     }
 
-    // Knob body (layered for detail)
+    // Body
     p.circle_filled(knob_center, radius, egui::Color32::from_rgb(22, 23, 27));
-    p.circle_filled(knob_center, radius - 4.0, egui::Color32::from_rgb(28, 29, 34));
-    p.circle_filled(knob_center, radius - 10.0, egui::Color32::from_rgb(20, 21, 25));
-    p.circle_stroke(knob_center, radius, egui::Stroke::new(1.5, egui::Color32::from_rgb(55, 50, 50)));
-    p.circle_stroke(knob_center, radius - 10.0, egui::Stroke::new(1.0, egui::Color32::from_rgb(40, 38, 40)));
+    p.circle_filled(knob_center, radius - 3.0, egui::Color32::from_rgb(28, 29, 34));
+    p.circle_filled(knob_center, radius - 7.0, egui::Color32::from_rgb(20, 21, 25));
+    p.circle_stroke(knob_center, radius, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(55, 50, 50)));
+    p.circle_stroke(
+        knob_center,
+        radius - 7.0,
+        egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(40, 38, 40)),
+    );
 
-    // Subtle inner grooves
-    for k in 0..3 {
-        let rr = radius - 24.0 - k as f32 * 10.0;
-        if rr > radius * 0.35 {
-            p.circle_stroke(knob_center, rr, egui::Stroke::new(1.0, egui::Color32::from_rgb(16, 16, 19)));
-        }
-    }
-
-    // Center cap
+    // Cap
     let cap_r = radius * 0.28;
-    p.circle_filled(knob_center, cap_r + 6.0, egui::Color32::from_rgb(16, 16, 18));
+    p.circle_filled(knob_center, cap_r + 4.0, egui::Color32::from_rgb(16, 16, 18));
     p.circle_filled(knob_center, cap_r, egui::Color32::from_rgb(32, 30, 30));
-    p.circle_stroke(knob_center, cap_r, egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 50, 50)));
+    p.circle_stroke(knob_center, cap_r, egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(60, 50, 50)));
     p.circle_filled(knob_center, cap_r * 0.35, accent_glow);
 
-    // Pointer/indicator
+    // Pointer
     let ang = start_angle + sweep * active_norm;
     let (s, c) = ang.sin_cos();
     let dir = egui::vec2(c, s);
-    let p0 = knob_center + dir * (cap_r + 10.0);
-    let p1 = knob_center + dir * (radius - 14.0);
-    p.line_segment([p0, p1], egui::Stroke::new(4.0, egui::Color32::from_rgb(235, 225, 215)));
-    p.line_segment([p0, p1], egui::Stroke::new(2.0, accent));
-    p.circle_filled(p1, 4.0, egui::Color32::from_rgb(235, 225, 215));
+    let p0 = knob_center + dir * (cap_r + 6.0);
+    let p1 = knob_center + dir * (radius - 10.0);
+    p.line_segment([p0, p1], egui::Stroke::new(3.0_f32, egui::Color32::from_rgb(235, 225, 215)));
+    p.line_segment([p0, p1], egui::Stroke::new(1.6_f32, accent));
+    p.circle_filled(p1, 3.0, egui::Color32::from_rgb(235, 225, 215));
 
-    // Readout below knob
-    let readout_y = inner.bottom() - 44.0;
+    // Labels / readout
+    let readout_y = rect.bottom() - style.readout_gap;
     p.text(
-        egui::pos2(inner.center().x, readout_y - 28.0),
+        egui::pos2(rect.center().x, readout_y - style.value_font * 0.9),
         egui::Align2::CENTER_CENTER,
-        "DECAY",
-        egui::FontId::proportional(13.0),
+        title,
+        egui::FontId::proportional(style.title_font),
         text_mid,
     );
     p.text(
-        egui::pos2(inner.center().x, readout_y),
+        egui::pos2(rect.center().x, readout_y),
         egui::Align2::CENTER_CENTER,
         label,
-        egui::FontId::monospace(28.0),
+        egui::FontId::monospace(style.value_font),
         text_hot,
     );
 
-    // Subtle end labels
     let (ls, lc) = start_angle.sin_cos();
     let (es, ec) = end_angle.sin_cos();
-    let lbl_r = radius + 30.0;
+    let lbl_r = radius + 18.0;
     p.text(
-        knob_center + egui::vec2(lc, ls) * lbl_r + egui::vec2(-6.0, 8.0),
+        knob_center + egui::vec2(lc, ls) * lbl_r + egui::vec2(-4.0, 6.0),
         egui::Align2::CENTER_CENTER,
-        "SHORT",
-        egui::FontId::proportional(10.0),
+        left_end,
+        egui::FontId::proportional(style.end_font),
         text_dim,
     );
     p.text(
-        knob_center + egui::vec2(ec, es) * lbl_r + egui::vec2(6.0, 8.0),
+        knob_center + egui::vec2(ec, es) * lbl_r + egui::vec2(4.0, 6.0),
         egui::Align2::CENTER_CENTER,
-        "LONG",
-        egui::FontId::proportional(10.0),
+        right_end,
+        egui::FontId::proportional(style.end_font),
         text_dim,
     );
 
     if response.hovered() || response.dragged() {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
     }
+}
+
+fn huge_decay_knob(ui: &mut egui::Ui, params: &HaellvorbParams, setter: &ParamSetter) {
+    let avail = ui.available_size();
+    let w = avail.x.clamp(300.0, 560.0);
+    let h = (avail.y * 0.62).clamp(300.0, 520.0);
+    draw_knob(
+        ui,
+        &params.rev_decay,
+        setter,
+        "DECAY",
+        "SHORT",
+        "LONG",
+        |secs| {
+            if secs < 1.0 {
+                format!("{} MS", (secs * 1000.0).round() as i32)
+            } else {
+                format!("{:.1} S", secs)
+            }
+        },
+        egui::vec2(w, h),
+        KnobStyle {
+            radius: 120.0,
+            value_font: 28.0,
+            title_font: 14.0,
+            end_font: 10.0,
+            readout_gap: 30.0,
+        },
+    );
+}
+
+fn small_knob<P, F>(
+    ui: &mut egui::Ui,
+    param: &P,
+    setter: &ParamSetter,
+    title: &str,
+    left_end: &str,
+    right_end: &str,
+    format_value: F,
+) where
+    P: Param<Plain = f32>,
+    F: Fn(f32) -> String,
+{
+    draw_knob(
+        ui,
+        param,
+        setter,
+        title,
+        left_end,
+        right_end,
+        format_value,
+        egui::vec2(150.0, 180.0),
+        KnobStyle {
+            radius: 46.0,
+            value_font: 15.0,
+            title_font: 11.0,
+            end_font: 9.0,
+            readout_gap: 18.0,
+        },
+    );
 }
 
 pub fn create(
@@ -277,12 +321,21 @@ pub fn create(
 
                     let panel = egui::Frame::NONE
                         .fill(egui::Color32::TRANSPARENT)
-                        .inner_margin(egui::Margin::symmetric(24, 18));
+                        .inner_margin(egui::Margin::symmetric(20, 14));
                     panel.show(ui, |ui| {
                         ui.vertical_centered(|ui| {
-                            ui.add_space(4.0);
+                            ui.add_space(2.0);
                             huge_decay_knob(ui, &params, setter);
-                            ui.add_space(4.0);
+                            ui.add_space(12.0);
+
+                            ui.horizontal_wrapped(|ui| {
+                                ui.spacing_mut().item_spacing = egui::vec2(10.0, 10.0);
+                                small_knob(ui, &params.rev_mix, setter, "MIX", "DRY", "WET", |v| format!("{} %", (v * 100.0).round() as i32));
+                                small_knob(ui, &params.rev_predelay, setter, "PRE-DELAY", "0", "250", |v| format!("{} ms", v.round() as i32));
+                                small_knob(ui, &params.rev_damp, setter, "DAMPING", "DARK", "BRIGHT", |v| format!("{} %", (v * 100.0).round() as i32));
+                                small_knob(ui, &params.in_gain, setter, "IN GAIN", "-24", "+24", |v| format!("{:+.1} dB", v));
+                                small_knob(ui, &params.out_gain, setter, "OUT GAIN", "-24", "+24", |v| format!("{:+.1} dB", v));
+                            });
                         });
                     });
                 });

@@ -26,14 +26,14 @@ impl Default for ChainParams {
             in_gain_db: 0.0,
             out_gain_db: 0.0,
             reverb_on: true,
-            reverb_mix: 0.35,
+            reverb_mix: 0.2,
             reverb_decay: 2.5,
             reverb_predelay: 0.03,
             reverb_damping: 0.35,
             scream_on: true,
             scream_sensitivity: 0.5,
             scream_change: 0.5,
-            scream_gain: 0.7,
+            scream_gain: 0.5011872,
         }
     }
 }
@@ -90,13 +90,11 @@ impl Chain {
             for s in buf.iter_mut() { *s *= in_lin; }
         }
 
-        // Reverb
+        // Reverb (main effect), controlled by mix knob.
         self.reverb.set_params(p.reverb_on, p.reverb_mix, p.reverb_decay, p.reverb_predelay, p.reverb_damping);
         self.reverb.process(buffers);
 
-        // Wilhelm screams (random threshold trigger + pitch-fit)
-        self.scream.set_params(p.scream_on, p.scream_sensitivity, p.scream_change, p.scream_gain);
-        self.scream.process(buffers);
+        // Scream intentionally ignored for now.
 
         // Output gain
         for buf in buffers.iter_mut() {

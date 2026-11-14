@@ -68,31 +68,25 @@ impl Default for HaellvorbParams {
             .unwrap_or(0xA53C9E21);
         if seed == 0 { seed = 0xA53C9E21; }
 
-        // "Randomize all other faders between 10% and 50% by default" (normalized).
-        let in_gain = lerp(-24.0, 24.0, rand_norm_10_50(&mut seed));
-        let out_gain = lerp(-24.0, 24.0, rand_norm_10_50(&mut seed));
-        let rev_mix = rand_norm_10_50(&mut seed);
+        // Reverb-focused defaults with adjustable mix.
         let rev_predelay = lerp(0.0, 250.0, rand_norm_10_50(&mut seed));
         let rev_damp = rand_norm_10_50(&mut seed);
-        let scream_sens = rand_norm_10_50(&mut seed);
-        let scream_change = rand_norm_10_50(&mut seed);
-        let scream_gain = lerp(0.0, 2.0, rand_norm_10_50(&mut seed));
 
         Self {
             editor_state: EguiState::from_size(DEFAULT_GUI_SIZE.0, DEFAULT_GUI_SIZE.1),
-            in_gain: FloatParam::new("Input Gain", in_gain, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
-            out_gain: FloatParam::new("Output Gain", out_gain, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
+            in_gain: FloatParam::new("Input Gain", 0.0, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
+            out_gain: FloatParam::new("Output Gain", 0.0, FloatRange::Linear { min: -24.0, max: 24.0 }).with_unit(" dB"),
 
             rev_on: BoolParam::new("Reverb", true),
-            rev_mix: FloatParam::new("Mix", rev_mix, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            rev_mix: FloatParam::new("Mix", 0.2, FloatRange::Linear { min: 0.0, max: 1.0 }),
             rev_decay: FloatParam::new("Decay", 2.5, FloatRange::Linear { min: 0.1, max: 10.0 }).with_unit(" s"),
             rev_predelay: FloatParam::new("Pre-delay", rev_predelay, FloatRange::Linear { min: 0.0, max: 250.0 }).with_unit(" ms"),
             rev_damp: FloatParam::new("Damping", rev_damp, FloatRange::Linear { min: 0.0, max: 1.0 }),
 
-            scream_on: BoolParam::new("Wilhelm", true),
-            scream_sens: FloatParam::new("Sensitivity", scream_sens, FloatRange::Linear { min: 0.0, max: 1.0 }),
-            scream_change: FloatParam::new("Chaos", scream_change, FloatRange::Linear { min: 0.0, max: 1.0 }),
-            scream_gain: FloatParam::new("Scream Level", scream_gain, FloatRange::Linear { min: 0.0, max: 2.0 }),
+            scream_on: BoolParam::new("Wilhelm", false),
+            scream_sens: FloatParam::new("Sensitivity", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            scream_change: FloatParam::new("Chaos", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            scream_gain: FloatParam::new("Scream Level", 10f32.powf(-6.0 / 20.0), FloatRange::Linear { min: 0.0, max: 2.0 }),
         }
     }
 }

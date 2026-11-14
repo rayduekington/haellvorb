@@ -99,7 +99,7 @@ impl ScreamEngine {
             hold_samples: (sample_rate * 0.4) as usize,
             hold_counter: 0,
             enabled: true,
-            scream_gain: 0.7,
+            scream_gain: 10f32.powf(-6.0 / 20.0),
             sensitivity: 0.5,
             change_rate: 0.5,
             change_counter: 0,
@@ -129,11 +129,12 @@ impl ScreamEngine {
         self.env_release = (-1.0 / (0.200 * self.sample_rate as f32)).exp();
     }
 
-    pub fn set_params(&mut self, enabled: bool, sensitivity: f32, change_rate: f32, gain: f32) {
+    pub fn set_params(&mut self, enabled: bool, sensitivity: f32, change_rate: f32, _gain: f32) {
         self.enabled = enabled;
         self.sensitivity = sensitivity.clamp(0.0, 1.0);
         self.change_rate = change_rate.clamp(0.0, 1.0);
-        self.scream_gain = gain.clamp(0.0, 2.0);
+        // Keep screams in the background at ~ -6 dB relative to the main signal.
+        self.scream_gain = 10f32.powf(-6.0 / 20.0);
         // sensitivity maps threshold range: high sensitivity -> lower thresholds (trigger easier)
         self.threshold_min_db = -48.0 + (1.0 - self.sensitivity) * 12.0;
         self.threshold_max_db = -24.0 + (1.0 - self.sensitivity) * 18.0;
