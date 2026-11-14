@@ -342,8 +342,13 @@ impl Reverb {
         let pd_cap = self.pre_delay_buf_l.len();
         let pd = self.pre_delay_samples.min(pd_cap.saturating_sub(1));
         let mix = self.mix.clamp(0.0, 1.0);
-        let wet_mix = mix;
-        let dry_mix = 1.0 - mix;
+        // Equal-power crossfade: keeps perceived level steadier through the midpoint.
+        // Attenuate wet more above 50% mix so overall volume drops in the wet-heavy range.
+        let angle = mix * std::f32::consts::FRAC_PI_2;
+        let dry_mix = angle.cos();
+        let high_mix = ((mix - 0.5) / 0.5).clamp(0.0, 1.0);
+        let wet_trim = 0.55 * (1.0 - 0.5 * high_mix);
+        let wet_mix = angle.sin() * wet_trim;
 
         for i in 0..n {
             let in_l = left[i];
@@ -440,10 +445,8 @@ impl Reverb {
             let mid_r_d = (self.mid_drive * mid_r).tanh();
             out_r = low_r + mid_r_d + high_r;
 
-            // Volume normalization: output gets lower as mix is ramped up
-            let norm = 1.0 - 0.5 * mix;
-            left[i] = (in_l * dry_mix + out_l * wet_mix) * norm;
-            right[i] = (in_r * dry_mix + out_r * wet_mix) * norm;
+            left[i] = in_l * dry_mix + out_l * wet_mix;
+            right[i] = in_r * dry_mix + out_r * wet_mix;
         }
     }
 }
